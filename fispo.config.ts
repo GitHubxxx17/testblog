@@ -30,6 +30,5 @@ export default defineConfig<ThemeConfig>({
         icon: "heart",
       },
     ],
-    banner: {},
   },
 });
