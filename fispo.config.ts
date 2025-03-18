@@ -31,4 +31,7 @@ export default defineConfig<ThemeConfig>({
       },
     ],
   },
+  vite: {
+    base: "/testblog/",
+  },
 });

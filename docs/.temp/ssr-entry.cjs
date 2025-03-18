@@ -106,7 +106,7 @@ function MDXContent(props = {}) {
     })
   }) : _createMdxContent(props);
 }
-const Route0 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const helloworld = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   default: MDXContent,
   frontmatter,
@@ -114,9 +114,9 @@ const Route0 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
   toc
 }, Symbol.toStringTag, { value: "Module" }));
 const routes = [
-  { path: "/post/helloworld", element: React.createElement(Route0), preload: () => Promise.resolve().then(() => Route0) }
+  { path: "/post/helloworld", element: React.createElement(MDXContent), preload: () => Promise.resolve().then(() => helloworld) }
 ];
-const siteData = { "title": "fispo的个人博客", "description": "学无止境", "theme": "particle", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "title": "", "subTitle": "" } }, "vite": {}, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png" };
+const siteData = { "title": "fispo的个人博客", "description": "学无止境", "theme": "particle", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "title": "", "subTitle": "" } }, "vite": { "base": "/testblog/" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png" };
 function formatDateToYYYYMMDD(dateStr) {
   const date2 = new Date(dateStr);
   const year = date2.getFullYear();
