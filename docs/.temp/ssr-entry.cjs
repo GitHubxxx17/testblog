@@ -117,7 +117,7 @@ const helloworld = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePr
 const routes = [
   { path: "/post/helloworld", element: React.createElement(MDXContent), preload: () => Promise.resolve().then(() => helloworld) }
 ];
-const siteData = { "base": "/testblog", "title": "fispo的个人博客", "description": "学无止境", "theme": "", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "subtitle": "" }, "sidebar": { "enable": true, "hide": false, "position": "right", "card_author": { "enable": true, "description": "", "button": { "enable": true, "icon": "github", "text": "Follow me", "link": "" } }, "card_announcement": { "enable": true, "content": "" }, "card_recent_post": { "enable": true, "limit": 5, "sort": "date" }, "card_categories": { "enable": true, "limit": 10 }, "card_tags": { "enable": true, "limit": 10 }, "card_webinfo": { "enable": true, "post_count": true, "last_push_date": true, "run_time": true } }, "footer": { "message": "", "copyright": "" } }, "vite": { "base": "/testblog" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "build": "build", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png", "markdown": {}, "plugins": [], "preloader": false, "deploy": { "branch": "master", "repo": "" } };
+const siteData = { "base": "/testblog", "title": "fispo的个人博客", "description": "学无止境", "theme": "", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "subtitle": "" }, "sidebar": { "enable": true, "hide": false, "position": "right", "card_author": { "enable": true, "description": "", "button": { "enable": true, "icon": "github", "text": "Follow me", "link": "" } }, "card_announcement": { "enable": true, "content": "" }, "card_recent_post": { "enable": true, "limit": 5, "sort": "date" }, "card_categories": { "enable": true, "limit": 10 }, "card_tags": { "enable": true, "limit": 10 }, "card_webinfo": { "enable": true, "post_count": true, "last_push_date": true, "run_time": true } }, "footer": { "message": "", "copyright": "" } }, "vite": { "base": "/testblog" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "build": "build", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png", "markdown": {}, "plugins": [{ "name": "fispo:plugin-perloader", "alias": { "@plugin-perloader": "D:\\Front-end\\ssg_learn\\blog\\node_modules\\@fispo\\plugin-preloader\\src\\Loading\\index.tsx" }, "preloader": "@plugin-perloader" }], "preloader": true, "deploy": { "branch": "master", "repo": "" } };
 function formatDateToYYYYMMDD(dateStr) {
   const date = new Date(dateStr);
   const year = date.getFullYear();
@@ -176,7 +176,7 @@ const nav = "_nav_14t1j_1";
 const menus = "_menus_14t1j_27";
 const hide = "_hide_14t1j_53";
 const top = "_top_14t1j_57";
-const styles$c = {
+const styles$d = {
   nav,
   "blog-name": "_blog-name_14t1j_15",
   menus,
@@ -290,7 +290,7 @@ const Icon = (props) => {
     }
   );
 };
-const EXTERNAL_URL_RE = /^(https?:)?\/\//;
+const EXTERNAL_URL_RE = /^(https?:|http:)?\/\//;
 function addLeadingSlash(url) {
   return url.charAt(0) === "/" || url.startsWith("https") ? url : "/" + url;
 }
@@ -308,6 +308,53 @@ function withBase(url, base) {
   const normalizedUrl = addLeadingSlash(url);
   return normalizedBase ? `${normalizedBase}${normalizedUrl}` : normalizedUrl;
 }
+const checkDomReady = () => {
+  return new Promise((resolve) => {
+    if (document.readyState === "complete") resolve(0);
+    else window.addEventListener("load", resolve, { once: true });
+  });
+};
+const checkAllImagesLoaded = () => {
+  const images = Array.from(document.querySelectorAll("img"));
+  console.log(images);
+  return Promise.all(
+    images.map((img) => {
+      return new Promise((resolve) => {
+        let isResolved = false;
+        const done = () => {
+          if (isResolved) return;
+          isResolved = true;
+          resolve("loaded");
+          cleanup();
+        };
+        const timeoutId = setTimeout(() => {
+          if (isResolved) return;
+          isResolved = true;
+          console.warn(`图片加载超时: ${img.src}`);
+          resolve("timeout");
+          cleanup();
+        }, 3e3);
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          img.removeEventListener("load", done);
+          img.removeEventListener("error", done);
+        };
+        if (img.complete) {
+          done();
+        } else {
+          img.addEventListener("load", done);
+          img.addEventListener("error", done);
+        }
+      });
+    })
+  );
+};
+const checkAllAssetsLoaded = async () => {
+  await checkDomReady();
+  console.log("dom节点加载完成");
+  await checkAllImagesLoaded();
+  console.log("图片资源加载完成");
+};
 const baseUrl = (url = "/") => {
   return withBase(url, siteData.base);
 };
@@ -335,6 +382,13 @@ const Link = React.forwardRef((props, ref) => {
   );
 });
 Link.displayName = "Link";
+const Image = React.forwardRef((props, ref) => {
+  const { src = "/", children, ...rest } = props;
+  const isExternal = EXTERNAL_URL_RE.test(src);
+  const withBaseUrl = isExternal ? src : baseUrl(src);
+  return /* @__PURE__ */ jsxRuntime.jsx("img", { ref, src: withBaseUrl, ...rest, children });
+});
+Image.displayName = "Image";
 function Nav(props) {
   const { title: title2 = "", menus: menus2 = [], children } = props;
   if (children) return children;
@@ -353,13 +407,13 @@ function Nav(props) {
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "nav",
     {
-      className: classNames(styles$c.nav, {
-        [styles$c.hide]: isHide,
-        [styles$c.top]: isTop
+      className: classNames(styles$d.nav, {
+        [styles$d.hide]: isHide,
+        [styles$d.top]: isTop
       }),
       children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c["blog-name"], children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "#", children: title2 }) }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c.menus, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: menus2.map((items) => {
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$d["blog-name"], children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "#", children: title2 }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$d.menus, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: menus2.map((items) => {
           return /* @__PURE__ */ jsxRuntime.jsx("li", { children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: items.path, children: [
             /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: items.icon }),
             /* @__PURE__ */ jsxRuntime.jsx("span", { children: items.title })
@@ -376,7 +430,7 @@ const right$1 = "_right_lrpq1_25";
 const content$1 = "_content_lrpq1_31";
 const meta$1 = "_meta_lrpq1_41";
 const info = "_info_lrpq1_66";
-const styles$b = {
+const styles$c = {
   articleList,
   item,
   left: left$1,
@@ -391,7 +445,7 @@ const pagination = "_pagination_1rhmf_1";
 const block = "_block_1rhmf_8";
 const active$1 = "_active_1rhmf_21";
 const number = "_number_1rhmf_28";
-const styles$a = {
+const styles$b = {
   pagination,
   block,
   active: active$1,
@@ -440,11 +494,11 @@ function Pagination(props) {
     },
     [onChange]
   );
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$a.pagination, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$b.pagination, children: [
     selectPage !== 1 && /* @__PURE__ */ jsxRuntime.jsx(
       "div",
       {
-        className: classNames(styles$a.block),
+        className: classNames(styles$b.block),
         onClick: () => setPage(selectPage - 1),
         children: "<"
       }
@@ -454,7 +508,7 @@ function Pagination(props) {
         return /* @__PURE__ */ jsxRuntime.jsx(
           "div",
           {
-            className: classNames(styles$a.block),
+            className: classNames(styles$b.block),
             onClick: () => setPage(selectPage + (index == 1 ? -5 : 5)),
             title: `${index == 1 ? "后退 5 页" : "前进 5 页"}`,
             children: "···"
@@ -465,8 +519,8 @@ function Pagination(props) {
         return /* @__PURE__ */ jsxRuntime.jsx(
           "div",
           {
-            className: classNames(styles$a.block, styles$a.number, {
-              [styles$a.active]: val === selectPage
+            className: classNames(styles$b.block, styles$b.number, {
+              [styles$b.active]: val === selectPage
             }),
             onClick: () => {
               setPage(val);
@@ -480,7 +534,7 @@ function Pagination(props) {
     selectPage !== pageCount && /* @__PURE__ */ jsxRuntime.jsx(
       "div",
       {
-        className: classNames(styles$a.block),
+        className: classNames(styles$b.block),
         onClick: () => setPage(selectPage + 1),
         children: ">"
       }
@@ -514,12 +568,12 @@ function ArticleList(props) {
     }
   };
   return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.articleList, children: currentArtcleList.map((item2, index) => {
-      return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$b.item, children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: item2.cover, alt: "" }) }) }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.right, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$b.content, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c.articleList, children: currentArtcleList.map((item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$c.item, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx(Image, { src: item2.cover, alt: "" }) }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c.right, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$c.content, children: [
           /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("h2", { children: item2.title }) }),
-          /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$b.meta, children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$c.meta, children: [
             /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
               /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar-alt" }),
               "发表于 ",
@@ -529,7 +583,7 @@ function ArticleList(props) {
               /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "inbox" }),
               /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/category/${item2.categories}`, children: item2.categories })
             ] }),
-            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$b["content-tag"], children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$c["content-tag"], children: [
               /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tag" }),
               item2.tags.map((tag2, index2) => {
                 return /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${tag2}`, children: tag2 }, `${tag2}-${index2}`);
@@ -540,8 +594,8 @@ function ArticleList(props) {
             "p",
             {
               className: classNames(
-                styles$b.info,
-                styles$b["multiline-ellipsis"]
+                styles$c.info,
+                styles$c["multiline-ellipsis"]
               ),
               children: item2.info
             }
@@ -563,7 +617,7 @@ const mainLeft = "_mainLeft_1g63m_33";
 const mainRight = "_mainRight_1g63m_38";
 const sidebarLeft = "_sidebarLeft_1g63m_43";
 const sidebarHide = "_sidebarHide_1g63m_47";
-const styles$9 = {
+const styles$a = {
   layout,
   header: header$1,
   "not-home-page": "_not-home-page_1g63m_15",
@@ -576,7 +630,7 @@ const styles$9 = {
 };
 const banner = "_banner_1hwpr_1";
 const meta = "_meta_1hwpr_33";
-const styles$8 = {
+const styles$9 = {
   banner,
   "banner-site-info": "_banner-site-info_1hwpr_20",
   "banner-site-title": "_banner-site-title_1hwpr_25",
@@ -597,15 +651,15 @@ function Banner(props) {
   return /* @__PURE__ */ jsxRuntime.jsx(
     "div",
     {
-      className: classNames(styles$8.banner, {
-        [styles$8["not-home-page"]]: !isHomePage
+      className: classNames(styles$9.banner, {
+        [styles$9["not-home-page"]]: !isHomePage
       }),
       style: {
-        backgroundImage: `url(${isArticlePage ? articleData.cover : bannerData.img})`
+        backgroundImage: `url(${baseUrl(isArticlePage ? articleData.cover : bannerData.img)})`
       },
-      children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$8["banner-site-info"], children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$8["banner-site-title"], children: title2 }),
-        isArticlePage && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$8.meta, children: [
+      children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$9["banner-site-info"], children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$9["banner-site-title"], children: title2 }),
+        isArticlePage && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$9.meta, children: [
           /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
             /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar-alt" }),
             "发表于 ",
@@ -615,7 +669,7 @@ function Banner(props) {
             /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "inbox" }),
             /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/category/${articleData.categories}`, children: articleData.categories })
           ] }),
-          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$8["content-tag"], children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$9["content-tag"], children: [
             /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tag" }),
             articleData.tags.map((tag2, index) => {
               return /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${tag2}`, children: tag2 }, `${tag2}-${index}`);
@@ -628,7 +682,7 @@ function Banner(props) {
 }
 const footer = "_footer_iuxfi_1";
 const footerInner = "_footerInner_iuxfi_8";
-const styles$7 = {
+const styles$8 = {
   footer,
   footerInner,
   "framework-info": "_framework-info_iuxfi_32"
@@ -636,16 +690,16 @@ const styles$7 = {
 function Footer(props) {
   const { children } = props;
   if (children) return children;
-  return /* @__PURE__ */ jsxRuntime.jsx("footer", { className: styles$7.footer, children: /* @__PURE__ */ jsxRuntime.jsxs(
+  return /* @__PURE__ */ jsxRuntime.jsx("footer", { className: styles$8.footer, children: /* @__PURE__ */ jsxRuntime.jsxs(
     "div",
     {
-      className: styles$7.footerInner,
+      className: styles$8.footerInner,
       style: {
-        backgroundImage: `url(${props.footerImg})`
+        backgroundImage: `url(${baseUrl(props.footerImg)})`
       },
       children: [
         /* @__PURE__ */ jsxRuntime.jsx("p", { children: "©2020 - 2023 By XXX17" }),
-        /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$7["framework-info"], children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$8["framework-info"], children: [
           /* @__PURE__ */ jsxRuntime.jsx("span", { children: "框架" }),
           /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "https://github.com/GitHubxxx17/fispo", children: "Fispo" }),
           /* @__PURE__ */ jsxRuntime.jsx("span", { children: "|" }),
@@ -658,7 +712,7 @@ function Footer(props) {
 }
 const sidebar = "_sidebar_18neh_1";
 const stickyLayout = "_stickyLayout_18neh_8";
-const styles$6 = {
+const styles$7 = {
   sidebar,
   stickyLayout
 };
@@ -674,7 +728,7 @@ const time = "_time_5w79l_146";
 const progress = "_progress_5w79l_155";
 const content = "_content_5w79l_162";
 const active = "_active_5w79l_178";
-const styles$5 = {
+const styles$6 = {
   card,
   avatar,
   author,
@@ -699,11 +753,11 @@ const styles$5 = {
 };
 const AuthorCard = (props) => {
   var _a, _b, _c, _d;
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.author, children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.avatar, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: props.avatar }) }),
-    /* @__PURE__ */ jsxRuntime.jsx("h2", { className: styles$5["author-name"], children: props == null ? void 0 : props.author }),
-    /* @__PURE__ */ jsxRuntime.jsx("p", { className: styles$5["author-description"], children: props == null ? void 0 : props.description }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["author-data"], children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.author, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.avatar, children: /* @__PURE__ */ jsxRuntime.jsx(Image, { src: props.avatar }) }),
+    /* @__PURE__ */ jsxRuntime.jsx("h2", { className: styles$6["author-name"], children: props == null ? void 0 : props.author }),
+    /* @__PURE__ */ jsxRuntime.jsx("p", { className: styles$6["author-description"], children: props == null ? void 0 : props.description }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["author-data"], children: [
       /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: "/", children: [
         /* @__PURE__ */ jsxRuntime.jsx("span", { children: "文章" }),
         /* @__PURE__ */ jsxRuntime.jsx("span", { children: props == null ? void 0 : props.articleNums })
@@ -717,7 +771,7 @@ const AuthorCard = (props) => {
         /* @__PURE__ */ jsxRuntime.jsx("span", { children: props == null ? void 0 : props.categorizeNums })
       ] })
     ] }),
-    ((_a = props == null ? void 0 : props.button) == null ? void 0 : _a.enable) && /* @__PURE__ */ jsxRuntime.jsx("button", { className: styles$5["follow-btn"], children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: (_b = props == null ? void 0 : props.button) == null ? void 0 : _b.link, target: "_blank", rel: "noreferrer", children: [
+    ((_a = props == null ? void 0 : props.button) == null ? void 0 : _a.enable) && /* @__PURE__ */ jsxRuntime.jsx("button", { className: styles$6["follow-btn"], children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: (_b = props == null ? void 0 : props.button) == null ? void 0 : _b.link, target: "_blank", rel: "noreferrer", children: [
       /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (_c = props == null ? void 0 : props.button) == null ? void 0 : _c.icon }),
       (_d = props == null ? void 0 : props.button) == null ? void 0 : _d.text
     ] }) })
@@ -725,8 +779,8 @@ const AuthorCard = (props) => {
 };
 const AuthorCard$1 = React.memo(AuthorCard);
 const AnnouncementCard = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-announcement"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["card-announcement"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.header, children: [
       /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "history", shake: true }),
       props == null ? void 0 : props.title
     ] }),
@@ -735,17 +789,17 @@ const AnnouncementCard = (props) => {
 };
 const AnnouncementCard$1 = React.memo(AnnouncementCard);
 const ArticleCard = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-article"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["card-article"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.header, children: [
       /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "history" }),
       props == null ? void 0 : props.title
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$5.list, children: props == null ? void 0 : props.data.map((item2, index) => {
+    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$6.list, children: props == null ? void 0 : props.data.map((item2, index) => {
       return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: item2.cover, alt: "" }) }) }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.right, children: [
-          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.title, children: item2.title }) }),
-          /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.time, children: item2.date })
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx(Image, { src: item2.cover, alt: "" }) }) }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.right, children: [
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$6.title, children: item2.title }) }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$6.time, children: item2.date })
         ] })
       ] }, `${item2.title}-${index}`);
     }) })
@@ -753,12 +807,12 @@ const ArticleCard = (props) => {
 };
 const ArticleCard$1 = React.memo(ArticleCard);
 const ListCard = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-list"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["card-list"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.header, children: [
       /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "folder-open" }),
       props == null ? void 0 : props.title
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$5.list, children: Object.entries(props == null ? void 0 : props.data).slice(0, props == null ? void 0 : props.limit).map(([name, value], index) => {
+    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$6.list, children: Object.entries(props == null ? void 0 : props.data).slice(0, props == null ? void 0 : props.limit).map(([name, value], index) => {
       return /* @__PURE__ */ jsxRuntime.jsx("li", { children: props.hover ? /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: `/category/${name}`, children: [
         /* @__PURE__ */ jsxRuntime.jsx("span", { children: name }),
         /* @__PURE__ */ jsxRuntime.jsx("span", { children: Array.isArray(value) ? value.length : value })
@@ -860,20 +914,20 @@ const TocCard = (props) => {
     };
     scrollManager.add(scrollToToc);
   }, []);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-toc"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["card-toc"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.header, children: [
       /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
         /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "stream" }),
         props == null ? void 0 : props.title
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.progress, children: progress2 })
+      /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$6.progress, children: progress2 })
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.content, ref: tocScroller, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: newTocData == null ? void 0 : newTocData.map(({ id, text, depth, serialNumber }, index) => {
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.content, ref: tocScroller, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: newTocData == null ? void 0 : newTocData.map(({ id, text, depth, serialNumber }, index) => {
       return /* @__PURE__ */ jsxRuntime.jsx(
         "li",
         {
           className: classNames({
-            [styles$5.active]: index == activeIndex
+            [styles$6.active]: index == activeIndex
           }),
           style: {
             marginLeft: `${(depth - 1) * 20}px`
@@ -930,12 +984,12 @@ const getRandomTextSize = (size) => {
   return `${Math.min(size, 20) / 20 + 1}rem`;
 };
 const TagCard = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-tag"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["card-tag"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.header, children: [
       /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tags" }),
       props == null ? void 0 : props.title
     ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["card-tag-cloud"], children: Object.entries(props.data).map(([tag2, tagArr], index) => {
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6["card-tag-cloud"], children: Object.entries(props.data).map(([tag2, tagArr], index) => {
       return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsx(
         Link,
         {
@@ -979,7 +1033,7 @@ function Card(props) {
         return /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, {});
     }
   };
-  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.card, children: getContent() });
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.card, children: getContent() });
 }
 function Sidebar(props) {
   const { children, pageData, isArticlePage = false } = props;
@@ -1004,7 +1058,7 @@ function Sidebar(props) {
       scrollManager.remove(scroll);
     };
   }, []);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.sidebar, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$7.sidebar, children: [
     card_author.enable && /* @__PURE__ */ jsxRuntime.jsx(
       Card,
       {
@@ -1056,7 +1110,7 @@ function Sidebar(props) {
     /* @__PURE__ */ jsxRuntime.jsxs(
       "div",
       {
-        className: styles$6.stickyLayout,
+        className: styles$7.stickyLayout,
         style: { top: isUp ? "70px" : "20px" },
         children: [
           isArticlePage && /* @__PURE__ */ jsxRuntime.jsx(
@@ -1109,7 +1163,7 @@ const Content = () => {
   return routeElement;
 };
 const Content$1 = React.memo(Content);
-const styles$4 = {
+const styles$5 = {
   "article-layout": "_article-layout_zsltx_1",
   "article-content": "_article-content_zsltx_10",
   "post-copyright": "_post-copyright_zsltx_103",
@@ -1170,13 +1224,13 @@ function ArticleLayout(props) {
       mediumZoom(".article-img");
     }, 500);
   }, []);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-layout"], children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["article-content"], children: /* @__PURE__ */ jsxRuntime.jsx(Content$1, {}) }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["post-copyright"], children: copyrightText.map((item2, index) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["article-layout"], children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["article-content"], children: /* @__PURE__ */ jsxRuntime.jsx(Content$1, {}) }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["post-copyright"], children: copyrightText.map((item2, index) => {
       return /* @__PURE__ */ jsxRuntime.jsxs(
         "div",
         {
-          className: styles$4["post-copyright-item"],
+          className: styles$5["post-copyright-item"],
           children: [
             /* @__PURE__ */ jsxRuntime.jsx("span", { children: item2.meta }),
             /* @__PURE__ */ jsxRuntime.jsx("span", { children: item2.value })
@@ -1185,20 +1239,20 @@ function ArticleLayout(props) {
         `post-copyright-${index}`
       );
     }) }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["article-tag"], children: frontmatter2.tags.map((item2, index) => {
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["article-tag"], children: frontmatter2.tags.map((item2, index) => {
       return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${item2}`, children: item2 }) }, `${item2}-${index}`);
     }) }),
-    currIndex !== 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-pagination"], children: [
+    articlesList.length > 1 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["article-pagination"], children: [
       currIndex > 0 && /* @__PURE__ */ jsxRuntime.jsx(
         "div",
         {
           className: classNames(
-            styles$4["pagination-left"],
-            styles$4["article-img-hover"]
+            styles$5["pagination-left"],
+            styles$5["article-img-hover"]
           ),
           children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: articlesList[currIndex - 1].path, children: [
-            /* @__PURE__ */ jsxRuntime.jsx("img", { src: articlesList[currIndex - 1].cover, alt: "" }),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["pagination-info"], children: [
+            /* @__PURE__ */ jsxRuntime.jsx(Image, { src: articlesList[currIndex - 1].cover, alt: "" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["pagination-info"], children: [
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: "上一篇" }),
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: articlesList[currIndex - 1].title })
             ] })
@@ -1209,12 +1263,12 @@ function ArticleLayout(props) {
         "div",
         {
           className: classNames(
-            styles$4["pagination-right"],
-            styles$4["article-img-hover"]
+            styles$5["pagination-right"],
+            styles$5["article-img-hover"]
           ),
           children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: articlesList[currIndex + 1].path, children: [
-            /* @__PURE__ */ jsxRuntime.jsx("img", { src: articlesList[currIndex + 1].cover, alt: "" }),
-            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["pagination-info"], children: [
+            /* @__PURE__ */ jsxRuntime.jsx(Image, { src: articlesList[currIndex + 1].cover, alt: "" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["pagination-info"], children: [
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: "下一篇" }),
               /* @__PURE__ */ jsxRuntime.jsx("span", { children: articlesList[currIndex + 1].title })
             ] })
@@ -1222,16 +1276,16 @@ function ArticleLayout(props) {
         }
       )
     ] }),
-    recmmendList.length !== 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-recommend"], children: [
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["recommend-title"], children: "相关推荐" }),
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["recommend-list"], children: recmmendList.map((recmmend, index) => {
+    recmmendList.length !== 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["article-recommend"], children: [
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["recommend-title"], children: "相关推荐" }),
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["recommend-list"], children: recmmendList.map((recmmend, index) => {
         return /* @__PURE__ */ jsxRuntime.jsx(
           "div",
           {
-            className: styles$4["article-img-hover"],
+            className: styles$5["article-img-hover"],
             children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: recmmend.path, children: [
-              /* @__PURE__ */ jsxRuntime.jsx("img", { src: recmmend.cover, alt: "" }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["recommend-info"], children: [
+              /* @__PURE__ */ jsxRuntime.jsx(Image, { src: recmmend.cover, alt: "" }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["recommend-info"], children: [
                 /* @__PURE__ */ jsxRuntime.jsx("span", { children: recmmend.date }),
                 /* @__PURE__ */ jsxRuntime.jsx("span", { children: recmmend.title })
               ] })
@@ -1245,17 +1299,17 @@ function ArticleLayout(props) {
 }
 const tag = "_tag_1k45l_1";
 const tagItem = "_tagItem_1k45l_10";
-const styles$3 = {
+const styles$4 = {
   tag,
   tagItem
 };
 function Tags(props) {
   const { tags = [] } = props;
-  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$3.tag, children: Object.keys(tags).map((name, index) => {
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4.tag, children: Object.keys(tags).map((name, index) => {
     return /* @__PURE__ */ jsxRuntime.jsx(
       Link,
       {
-        className: styles$3.tagItem,
+        className: styles$4.tagItem,
         style: { color: getRandomColor() },
         href: `tag/${name}`,
         children: name
@@ -1265,12 +1319,12 @@ function Tags(props) {
   }) });
 }
 const category = "_category_1l5ig_1";
-const styles$2 = {
+const styles$3 = {
   category
 };
 function Categories(props) {
   const { categories } = props;
-  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$2.category, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: Object.entries(categories).map(([name, value], index) => {
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$3.category, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: Object.entries(categories).map(([name, value], index) => {
     return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
       /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `category/${name}`, children: name }),
       /* @__PURE__ */ jsxRuntime.jsx("span", { children: `(${value.length})` })
@@ -1306,7 +1360,7 @@ function CustomLayout(props) {
   }
 }
 const rightSide = "_rightSide_g11mb_1";
-const styles$1 = {
+const styles$2 = {
   rightSide,
   "rightSide-settings": "_rightSide-settings_g11mb_8",
   "rightSide-item": "_rightSide-item_g11mb_14",
@@ -1405,7 +1459,7 @@ function RightSide(props) {
       return /* @__PURE__ */ jsxRuntime.jsx(
         "div",
         {
-          className: styles$1["rightSide-item"],
+          className: styles$2["rightSide-item"],
           title: item2.text,
           onClick: () => {
             var _a;
@@ -1421,15 +1475,15 @@ function RightSide(props) {
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "div",
     {
-      className: classNames(styles$1.rightSide, {
-        [styles$1["rightSide-hide"]]: isTop
+      className: classNames(styles$2.rightSide, {
+        [styles$2["rightSide-hide"]]: isTop
       }),
       children: [
         /* @__PURE__ */ jsxRuntime.jsx(
           "div",
           {
-            className: classNames(styles$1["rightSide-settings"], {
-              [styles$1["rightSide-hide"]]: settingsIsHide
+            className: classNames(styles$2["rightSide-settings"], {
+              [styles$2["rightSide-hide"]]: settingsIsHide
             }),
             children: rightSideSettings.map(rightSideItemRender)
           }
@@ -1442,15 +1496,15 @@ function RightSide(props) {
 const notFoundLayout = "_notFoundLayout_18laa_1";
 const notFoundImg = "_notFoundImg_18laa_15";
 const errorInfo = "_errorInfo_18laa_30";
-const styles = {
+const styles$1 = {
   notFoundLayout,
   notFoundImg,
   errorInfo
 };
 const NotFoundLayout = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles.notFoundLayout, children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles.notFoundImg, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: props.notFoundImg, alt: "404" }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles.errorInfo, children: [
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$1.notFoundLayout, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$1.notFoundImg, children: /* @__PURE__ */ jsxRuntime.jsx(Image, { src: props.notFoundImg, alt: "404" }) }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$1.errorInfo, children: [
       /* @__PURE__ */ jsxRuntime.jsx("h1", { children: "404" }),
       /* @__PURE__ */ jsxRuntime.jsx("span", { children: "页面没有找到" })
     ] })
@@ -1497,17 +1551,17 @@ function Layout(props) {
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "div",
     {
-      className: styles$9.layout,
+      className: styles$a.layout,
       style: {
-        backgroundImage: `url(${siteData2.backgroundImg})`
+        backgroundImage: `url(${baseUrl(siteData2.backgroundImg)})`
       },
       children: [
         /* @__PURE__ */ jsxRuntime.jsx(reactHelmetAsync.Helmet, { children: /* @__PURE__ */ jsxRuntime.jsx("title", { children: isHomePage ? title2 : `${title2} | ${siteData2.title}` }) }),
         /* @__PURE__ */ jsxRuntime.jsxs(
           "header",
           {
-            className: classNames(styles$9.header, {
-              [styles$9["not-home-page"]]: !isHomePage
+            className: classNames(styles$a.header, {
+              [styles$a["not-home-page"]]: !isHomePage
             }),
             children: [
               /* @__PURE__ */ jsxRuntime.jsx(Nav, { title: siteTitle, menus: navMenus }),
@@ -1524,11 +1578,11 @@ function Layout(props) {
             ]
           }
         ),
-        /* @__PURE__ */ jsxRuntime.jsx("main", { className: styles$9.main, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$9.mainInner, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("main", { className: styles$a.main, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$a.mainInner, children: [
           /* @__PURE__ */ jsxRuntime.jsx(
             "div",
             {
-              className: styles$9.mainLeft,
+              className: styles$a.mainLeft,
               style: {
                 width: sideBarHide ? "80%" : ""
               },
@@ -1538,9 +1592,9 @@ function Layout(props) {
           sidebarEnable && /* @__PURE__ */ jsxRuntime.jsx(
             "div",
             {
-              className: classNames(styles$9.mainRight, {
-                [styles$9.sidebarLeft]: sidebar2.position === "left",
-                [styles$9.sidebarHide]: sideBarHide
+              className: classNames(styles$a.mainRight, {
+                [styles$a.sidebarLeft]: sidebar2.position === "left",
+                [styles$a.sidebarHide]: sideBarHide
               }),
               children: /* @__PURE__ */ jsxRuntime.jsx(
                 Sidebar,
@@ -1572,6 +1626,48 @@ function Layout(props) {
     }
   );
 }
+const loading = "_loading_y2833_1";
+const finishLoading = "_finishLoading_y2833_78";
+const styles = {
+  loading,
+  "loading-left-bg": "_loading-left-bg_y2833_8",
+  "loading-right-bg": "_loading-right-bg_y2833_9",
+  "spinner-box": "_spinner-box_y2833_15",
+  "spinner-box-1": "_spinner-box-1_y2833_23",
+  "spinner-box-2": "_spinner-box-2_y2833_24",
+  "loading-text": "_loading-text_y2833_38",
+  finishLoading
+};
+const Preloader = (props) => {
+  const [hidden, setHidden] = React.useState(false);
+  React.useEffect(() => {
+    console.log("finishLoading", props.finishLoading);
+    if (!props.finishLoading) return;
+    const timer = setTimeout(() => {
+      setHidden(true);
+    }, 1e3);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [props.finishLoading]);
+  return !hidden && /* @__PURE__ */ jsxRuntime.jsxs(
+    "div",
+    {
+      className: classNames(styles.loading, {
+        [styles.finishLoading]: props.finishLoading
+      }),
+      children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles["loading-left-bg"] }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles["loading-right-bg"] }),
+        !props.finishLoading && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles["spinner-box"], children: [
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles["spinner-box-1"] }),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles["spinner-box-2"] }),
+          /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles["loading-text"], children: "加载中···" })
+        ] })
+      ]
+    }
+  );
+};
 async function initPageData(routePath) {
   routePath = removeBase(routePath);
   const pathList = routePath.split("/").filter(Boolean);
@@ -1618,11 +1714,17 @@ async function initPageData(routePath) {
 }
 function App() {
   const pageData = usePageData();
-  const [finishLoading, setFinishLoading] = React.useState(false);
+  const [finishLoading2, setFinishLoading] = React.useState(false);
   React.useEffect(() => {
+    const unmountLoading = () => {
+      checkAllAssetsLoaded().then(() => {
+        setFinishLoading(true);
+      });
+    };
+    unmountLoading();
   }, []);
   return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
-    siteData.preloader,
+    /* @__PURE__ */ jsxRuntime.jsx(Preloader, { finishLoading: finishLoading2 }),
     /* @__PURE__ */ jsxRuntime.jsx(Layout, { pageData })
   ] });
 }

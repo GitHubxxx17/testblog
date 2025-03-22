@@ -1,4 +1,5 @@
 import type { ThemeConfig } from "@fispo/particle";
+import { preloaderPlugin } from "@fispo/plugin-preloader";
 import { defineConfig } from "fispo-core";
 
 export default defineConfig({
@@ -31,4 +32,6 @@ export default defineConfig({
       },
     ],
   },
+  preloader: true,
+  plugins: [preloaderPlugin()],
 });
