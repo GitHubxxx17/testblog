@@ -1,12 +1,11 @@
 import type { ThemeConfig } from "@fispo/particle";
 import { defineConfig } from "fispo-core";
 
-export default defineConfig<ThemeConfig>({
+export default defineConfig({
   title: "fispo的个人博客",
   author: "fispo",
   description: "学无止境",
   notFoundImg: "/404.png",
-  theme: "particle",
   themeConfig: {
     navMenus: [
       {

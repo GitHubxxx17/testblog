@@ -27,9 +27,10 @@ const React = require("react");
 const classNames = require("classnames");
 const reactFontawesome = require("@fortawesome/react-fontawesome");
 const reactRouter = require("react-router");
+const mediumZoom = require("medium-zoom");
+const reactHelmetAsync = require("react-helmet-async");
 const server = require("react-dom/server");
 const router = require("@remix-run/router");
-const reactHelmetAsync = require("react-helmet-async");
 function _interopNamespaceDefault(e) {
   const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
   if (e) {
@@ -116,12 +117,12 @@ const helloworld = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePr
 const routes = [
   { path: "/post/helloworld", element: React.createElement(MDXContent), preload: () => Promise.resolve().then(() => helloworld) }
 ];
-const siteData = { "title": "fispo的个人博客", "description": "学无止境", "theme": "particle", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "title": "", "subTitle": "" } }, "vite": { "base": "/testblog/" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png" };
+const siteData = { "base": "", "title": "fispo的个人博客", "description": "学无止境", "theme": "", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "subtitle": "" }, "sidebar": { "enable": true, "hide": false, "position": "right", "card_author": { "enable": true, "description": "", "button": { "enable": true, "icon": "github", "text": "Follow me", "link": "" } }, "card_announcement": { "enable": true, "content": "" }, "card_recent_post": { "enable": true, "limit": 5, "sort": "date" }, "card_categories": { "enable": true, "limit": 10 }, "card_tags": { "enable": true, "limit": 10 }, "card_webinfo": { "enable": true, "post_count": true, "last_push_date": true, "run_time": true } }, "footer": { "message": "", "copyright": "" } }, "vite": { "base": "/" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "build": "build", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png", "markdown": {}, "plugins": [], "preloader": false, "deploy": { "branch": "master", "repo": "" } };
 function formatDateToYYYYMMDD(dateStr) {
-  const date2 = new Date(dateStr);
-  const year = date2.getFullYear();
-  const month = date2.getMonth() + 1;
-  const day = date2.getDate();
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
   const formattedMonth = String(month).padStart(2, "0");
   const formattedDay = String(day).padStart(2, "0");
   return `${year}-${formattedMonth}-${formattedDay}`;
@@ -135,7 +136,7 @@ function sortByDate(arr) {
 }
 async function handleRoutes(routes2) {
   const articlesList = [];
-  const tags2 = {};
+  const tags = {};
   const categories = {};
   for await (const route of routes2) {
     const moduleInfo = await route.preload();
@@ -145,11 +146,11 @@ async function handleRoutes(routes2) {
       path: route.path,
       info: moduleInfo.mdInfo
     });
-    moduleInfo.frontmatter.tags.forEach((tag) => {
-      if (tags2[tag]) {
-        tags2[tag].push(route.path);
+    moduleInfo.frontmatter.tags.forEach((tag2) => {
+      if (tags[tag2]) {
+        tags[tag2].push(route.path);
       } else {
-        tags2[tag] = [route.path];
+        tags[tag2] = [route.path];
       }
     });
     const category2 = moduleInfo.frontmatter.categories;
@@ -163,7 +164,7 @@ async function handleRoutes(routes2) {
   }
   return {
     articlesList,
-    tags: tags2,
+    tags,
     categories
   };
 }
@@ -171,19 +172,16 @@ const DataContext = React.createContext({});
 const usePageData = () => {
   return React.useContext(DataContext);
 };
-const layout = "_layout_1obw2_1";
-const styles$8 = {
-  layout
-};
-const nav = "_nav_ixtzq_1";
-const menus = "_menus_ixtzq_27";
-const hide = "_hide_ixtzq_47";
-const styles$7 = {
+const nav = "_nav_14t1j_1";
+const menus = "_menus_14t1j_27";
+const hide = "_hide_14t1j_53";
+const top = "_top_14t1j_57";
+const styles$c = {
   nav,
-  "blog-name": "_blog-name_ixtzq_12",
+  "blog-name": "_blog-name_14t1j_15",
   menus,
-  "nav-blue": "_nav-blue_ixtzq_40",
-  hide
+  hide,
+  top
 };
 function debounce(func, delay) {
   let timer = null;
@@ -292,14 +290,60 @@ const Icon = (props) => {
     }
   );
 };
+const EXTERNAL_URL_RE = /^(https?:)?\/\//;
+function addLeadingSlash(url) {
+  return url.charAt(0) === "/" || url.startsWith("https") ? url : "/" + url;
+}
+function removeTrailingSlash(url) {
+  return url.charAt(url.length - 1) === "/" ? url.slice(0, -1) : url;
+}
+function normalizeSlash(url) {
+  return removeTrailingSlash(addLeadingSlash(url));
+}
+function withBase(url, base) {
+  if (EXTERNAL_URL_RE.test(url)) {
+    return url;
+  }
+  const normalizedBase = normalizeSlash(base);
+  const normalizedUrl = addLeadingSlash(url);
+  return normalizedBase ? `${normalizedBase}${normalizedUrl}` : normalizedUrl;
+}
+const baseUrl = (url = "/") => {
+  return withBase(url, siteData.base);
+};
+function removeBase(url) {
+  const normalizedBase = normalizeSlash(siteData.base);
+  const normalizedUrl = url.replace(normalizedBase, "") || "/";
+  return normalizedUrl;
+}
+const Link = React.forwardRef((props, ref) => {
+  const { href = "/", children, target, rel, ...rest } = props;
+  const isExternal = EXTERNAL_URL_RE.test(href);
+  const innerTarget = isExternal ? "_blank" : target;
+  const innerRel = isExternal ? "noopener noreferrer" : rel;
+  const withBaseUrl = isExternal ? href : baseUrl(href);
+  return /* @__PURE__ */ jsxRuntime.jsx(
+    "a",
+    {
+      ref,
+      href: withBaseUrl,
+      target: innerTarget,
+      rel: innerRel,
+      ...rest,
+      children
+    }
+  );
+});
+Link.displayName = "Link";
 function Nav(props) {
-  const { title: title2 = "", menus: menus2 = [], navBlue = true } = props;
+  const { title: title2 = "", menus: menus2 = [], children } = props;
+  if (children) return children;
   const [isHide, setIsHide] = React.useState(false);
-  const [isBlue, setIsBlue] = React.useState(true);
+  const [isTop, setIsTop] = React.useState(true);
   React.useEffect(() => {
-    setIsBlue(navBlue);
-    const scroll = (direction) => {
+    const scroll = (direction, isTop2) => {
       setIsHide(direction == "down");
+      setIsTop(isTop2);
     };
     scrollManager.add(scroll);
     return () => {
@@ -309,14 +353,14 @@ function Nav(props) {
   return /* @__PURE__ */ jsxRuntime.jsxs(
     "nav",
     {
-      className: classNames(styles$7.nav, {
-        [styles$7.hide]: isHide,
-        [styles$7["nav-blue"]]: isBlue
+      className: classNames(styles$c.nav, {
+        [styles$c.hide]: isHide,
+        [styles$c.top]: isTop
       }),
       children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$7["blog-name"], children: /* @__PURE__ */ jsxRuntime.jsx("a", { href: "#", children: title2 }) }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$7.menus, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: menus2.map((items) => {
-          return /* @__PURE__ */ jsxRuntime.jsx("li", { children: /* @__PURE__ */ jsxRuntime.jsxs("a", { href: items.path, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c["blog-name"], children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "#", children: title2 }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$c.menus, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: menus2.map((items) => {
+          return /* @__PURE__ */ jsxRuntime.jsx("li", { children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: items.path, children: [
             /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: items.icon }),
             /* @__PURE__ */ jsxRuntime.jsx("span", { children: items.title })
           ] }) }, items.title);
@@ -325,296 +369,1110 @@ function Nav(props) {
     }
   );
 }
-const homeLayout = "_homeLayout_n55af_1";
-const loop = "_loop_n55af_22";
-const info$2 = "_info_n55af_57";
-const avatar = "_avatar_n55af_108";
-const name = "_name_n55af_121";
-const description$1 = "_description_n55af_126";
-const styles$6 = {
-  homeLayout,
-  "home-info": "_home-info_n55af_16",
-  loop,
-  info: info$2,
-  "home-posts-wrap": "_home-posts-wrap_n55af_77",
-  "home-posts": "_home-posts_n55af_77",
-  "home-card": "_home-card_n55af_89",
-  "home-card-inner": "_home-card-inner_n55af_92",
-  avatar,
-  name,
-  description: description$1,
-  "friend-links": "_friend-links_n55af_131",
-  "icon-links": "_icon-links_n55af_132",
-  "icon-link": "_icon-link_n55af_132"
+const articleList = "_articleList_lrpq1_1";
+const item = "_item_lrpq1_1";
+const left$1 = "_left_lrpq1_16";
+const right$1 = "_right_lrpq1_25";
+const content$1 = "_content_lrpq1_31";
+const meta$1 = "_meta_lrpq1_41";
+const info = "_info_lrpq1_66";
+const styles$b = {
+  articleList,
+  item,
+  left: left$1,
+  right: right$1,
+  content: content$1,
+  meta: meta$1,
+  info,
+  "content-tag": "_content-tag_lrpq1_71",
+  "multiline-ellipsis": "_multiline-ellipsis_lrpq1_75"
 };
-const post = "_post_1657o_1";
-const category = "_category_1657o_19";
-const date = "_date_1657o_33";
-const description = "_description_1657o_36";
-const styles$5 = {
-  post,
-  "category-and-date": "_category-and-date_1657o_19",
-  category,
-  date,
-  description,
-  "post-tags": "_post-tags_1657o_39",
-  "go-post": "_go-post_1657o_48"
+const pagination = "_pagination_1rhmf_1";
+const block = "_block_1rhmf_8";
+const active$1 = "_active_1rhmf_21";
+const number = "_number_1rhmf_28";
+const styles$a = {
+  pagination,
+  block,
+  active: active$1,
+  number
 };
-const colors = [
-  "#03a9f4",
-  "#00bcd4",
-  "#00a596",
-  "#ff7d73",
-  "#00bcd4",
-  "#ffa2c4"
-];
-function getRandomColor() {
-  const randomIndex = Math.floor(Math.random() * colors.length);
-  return colors[randomIndex];
-}
-const Post = (props) => {
-  console.log(props);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.post, children: [
-    /* @__PURE__ */ jsxRuntime.jsx("a", { href: props.path, children: /* @__PURE__ */ jsxRuntime.jsx("h2", { children: props.title }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["category-and-date"], children: [
-      /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.category, children: /* @__PURE__ */ jsxRuntime.jsxs("a", { href: `/category/${props.categories}`, children: [
-        /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "folder-open" }),
-        props.categories
-      ] }) }),
-      /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$5.date, children: [
-        /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar" }),
-        props.date
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.description, children: /* @__PURE__ */ jsxRuntime.jsx("p", { dangerouslySetInnerHTML: { __html: props.info } }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["post-tags"], children: [
-      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tags" }),
-      props.tags.map((tag, index) => {
-        return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsx("a", { href: `/tag/${tag}`, style: { color: getRandomColor() }, children: tag }) }, index);
-      })
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx("a", { href: props.path, className: styles$5["go-post"], children: "阅读全文" })
-  ] });
-};
-function HomeLayout(props) {
-  const { siteData: siteData2, title: title2, articlesList } = props.pageData;
-  const { themeConfig, author, avatar: avatar2, description: description2 } = siteData2;
-  const { banner } = themeConfig;
-  console.log(themeConfig);
-  const iconList = ["github", "qq", "envelope"];
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.homeLayout, children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("header", { children: [
-      /* @__PURE__ */ jsxRuntime.jsx("img", { src: banner.img, alt: "" }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["home-info"], children: [
-        Array.from({ length: 4 }).map((_, i) => {
-          return /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$6.loop }, i);
-        }),
-        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.info, children: [
-          /* @__PURE__ */ jsxRuntime.jsx("h1", { children: title2 }),
-          /* @__PURE__ */ jsxRuntime.jsx("h3", { children: banner.subTitle })
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["home-posts-wrap"], children: [
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6["home-posts"], children: articlesList.map((article, index) => {
-        return /* @__PURE__ */ React.createElement(Post, { ...article, key: index });
-      }) }),
-      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6["home-card"], children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6["home-card-inner"], children: [
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.avatar, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: avatar2, alt: "avatar" }) }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.name, children: author }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6.description, children: description2 }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6["icon-links"], children: iconList.map((item, index) => {
-          return /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$6["icon-link"], children: /* @__PURE__ */ jsxRuntime.jsx("a", { href: "", children: /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: item }) }) }, index);
-        }) }),
-        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$6["friend-links"] })
-      ] }) })
-    ] })
-  ] });
-}
-const footer = "_footer_dfym6_1";
-const styles$4 = {
-  footer,
-  "footer-wrap": "_footer-wrap_dfym6_9"
-};
-const Footer = (props) => {
-  return /* @__PURE__ */ jsxRuntime.jsx("footer", { className: styles$4.footer, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["footer-wrap"], children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-      "© 2022 - 2024 ",
-      props.title,
-      " | @",
-      props.author
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { children: [
-      "Based on the",
-      " ",
-      /* @__PURE__ */ jsxRuntime.jsx("a", { href: "https://github.com/GitHubxxx17/fispo", children: "Fispo Engine" }),
-      "|",
-      /* @__PURE__ */ jsxRuntime.jsx("a", { href: "https://github.com/GitHubxxx17/fispo", children: "Particle Theme" })
-    ] })
-  ] }) });
-};
-const Content = () => {
-  console.log(routes);
-  const routeElement = reactRouter.useRoutes(routes);
-  return routeElement;
-};
-const articleLayout = "_articleLayout_1v93v_1";
-const header = "_header_1v93v_9";
-const info$1 = "_info_1v93v_12";
-const styles$3 = {
-  articleLayout,
-  header,
-  info: info$1
-};
-function convertDateString(dateStr) {
-  const date2 = new Date(dateStr);
-  const year = date2.getFullYear();
-  const month = String(date2.getMonth() + 1).padStart(2, "0");
-  const day = String(date2.getDate()).padStart(2, "0");
-  return `${year}/${month}/${day}`;
-}
-const ArticleLayout = (props) => {
-  const { title: title2, frontmatter: frontmatter2 } = props.pageData;
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$3.articleLayout, children: [
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$3.header, children: [
-      /* @__PURE__ */ jsxRuntime.jsx("h1", { children: title2 }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$3.info, children: [
-        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
-          /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar" }),
-          convertDateString(frontmatter2.date)
-        ] }),
-        /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsxs("a", { href: `/category/${frontmatter2.categories}`, children: [
-          /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "folder-open" }),
-          frontmatter2.categories
-        ] }) }),
-        /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
-          /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tags" }),
-          frontmatter2.tags.map((tag, index) => {
-            return /* @__PURE__ */ jsxRuntime.jsx("a", { href: `/tag/${tag}`, children: /* @__PURE__ */ jsxRuntime.jsx("span", { style: { color: getRandomColor() }, children: tag }) }, index);
-          })
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntime.jsx(Content, {})
-  ] });
-};
-const tags = "_tags_1cyzc_1";
-const styles$2 = {
-  tags,
-  "categories-tags": "_categories-tags_1cyzc_4"
-};
-const articleCard = "_articleCard_7qrok_1";
-const title = "_title_7qrok_9";
-const time = "_time_7qrok_15";
-const info = "_info_7qrok_23";
-const styles$1 = {
-  articleCard,
-  title,
-  time,
-  info
-};
-const ArticleCard = (props) => {
-  var _a;
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$1.articleCard, children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$1.time, children: props.date }),
-    /* @__PURE__ */ jsxRuntime.jsx("a", { href: props.path, className: styles$1.title, children: /* @__PURE__ */ jsxRuntime.jsx("h3", { children: props.title }) }),
-    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$1.info, children: [
-      /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsxs("a", { href: `/category/${props.categories}`, children: [
-        /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "folder-open" }),
-        props.categories
-      ] }) }),
-      /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
-        /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tags" }),
-        (_a = props.tags) == null ? void 0 : _a.map((tag, index) => {
-          return /* @__PURE__ */ jsxRuntime.jsx("a", { href: `/tag/${tag}`, children: /* @__PURE__ */ jsxRuntime.jsx("span", { style: { color: getRandomColor() }, children: tag }) }, index);
-        })
-      ] })
-    ] })
-  ] });
-};
-const Tags = (props) => {
-  const { tags: tags2 = [], type, articleList, keyword } = props;
-  const iconType = type === "tag" ? "tags" : "folder-open";
-  const currBg = "linear-gradient(120deg, rgb(154, 187, 247) 0px, rgb(255, 187, 244) 100%)";
-  const articles = React.useMemo(() => {
-    if (!keyword) return [];
-    if (type == "tag") {
-      return articleList.filter((article) => {
-        var _a;
-        return (_a = article.tags) == null ? void 0 : _a.includes(keyword);
-      });
+function Pagination(props) {
+  const { currentPage = 1, pageCount = 1, onChange } = props;
+  const [selectPage, setSelectPage] = React.useState(currentPage);
+  const renderPages = React.useMemo(() => {
+    if (pageCount < 8) {
+      return Array.from({ length: pageCount }).map((_, i) => i + 1);
     } else {
-      return articleList.filter((article) => {
-        return article.categories === keyword;
-      });
-    }
-  }, [articleList]);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$2.tags, children: [
-    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$2["categories-tags"], children: Object.entries(tags2).map(([tag], index) => {
-      return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsxs(
-        "a",
-        {
-          href: `/${type}/${tag}`,
-          style: {
-            background: tag === keyword ? currBg : getRandomColor()
-          },
-          children: [
-            /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: iconType }),
-            tag
-          ]
+      const pages = [];
+      let min = Math.max(selectPage - 2, 1);
+      let max = Math.min(selectPage + 2, pageCount);
+      if (selectPage - 2 <= 0) {
+        max = 5;
+      }
+      if (selectPage + 2 >= pageCount) {
+        min = pageCount - 4;
+      }
+      for (let i = min; i <= max; i++) {
+        pages.push(i);
+      }
+      if (pages[0] != 1) {
+        if (pages[0] > 2) {
+          pages.unshift(0);
         }
-      ) }, index);
-    }) }),
-    articles.map((article, index) => {
-      return /* @__PURE__ */ React.createElement(ArticleCard, { ...article, key: index });
-    })
+        pages.unshift(1);
+      }
+      if (pages.at(-1) != pageCount) {
+        if (pages.at(-1) < pageCount - 1) {
+          pages.push(0);
+        }
+        pages.push(pageCount);
+      }
+      return pages;
+    }
+  }, [pageCount, selectPage]);
+  const setPage = React.useCallback(
+    (val) => {
+      if (val < 1) val = 1;
+      if (val > pageCount) val = pageCount;
+      setSelectPage(val);
+      onChange == null ? void 0 : onChange(val);
+    },
+    [onChange]
+  );
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$a.pagination, children: [
+    selectPage !== 1 && /* @__PURE__ */ jsxRuntime.jsx(
+      "div",
+      {
+        className: classNames(styles$a.block),
+        onClick: () => setPage(selectPage - 1),
+        children: "<"
+      }
+    ),
+    renderPages.map((val, index) => {
+      if (val === 0) {
+        return /* @__PURE__ */ jsxRuntime.jsx(
+          "div",
+          {
+            className: classNames(styles$a.block),
+            onClick: () => setPage(selectPage + (index == 1 ? -5 : 5)),
+            title: `${index == 1 ? "后退 5 页" : "前进 5 页"}`,
+            children: "···"
+          },
+          `${val}-${index}`
+        );
+      } else {
+        return /* @__PURE__ */ jsxRuntime.jsx(
+          "div",
+          {
+            className: classNames(styles$a.block, styles$a.number, {
+              [styles$a.active]: val === selectPage
+            }),
+            onClick: () => {
+              setPage(val);
+            },
+            children: val
+          },
+          `page-${val}`
+        );
+      }
+    }),
+    selectPage !== pageCount && /* @__PURE__ */ jsxRuntime.jsx(
+      "div",
+      {
+        className: classNames(styles$a.block),
+        onClick: () => setPage(selectPage + 1),
+        children: ">"
+      }
+    )
   ] });
-};
-const customLayout = "_customLayout_taknp_1";
-const styles = {
-  customLayout
-};
-const CustomLayout = (props) => {
-  const { pagePath, tags: tags2, categories, articlesList } = props.pageData;
-  const pathList = pagePath.split("/").filter(Boolean);
-  const type = pathList[0];
-  const keyword = decodeURI(pathList.at(-1));
-  const render2 = (type2) => {
-    switch (type2) {
-      case "tag":
-        return /* @__PURE__ */ jsxRuntime.jsx(
-          Tags,
-          {
-            type: "tag",
-            tags: tags2,
-            articleList: articlesList,
-            keyword
-          }
-        );
-      case "category":
-        return /* @__PURE__ */ jsxRuntime.jsx(
-          Tags,
-          {
-            type: "category",
-            tags: categories,
-            articleList: articlesList,
-            keyword
-          }
-        );
-      default:
+}
+function ArticleList(props) {
+  const { step = 5, children, filter } = props;
+  if (children) return children;
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const articleList2 = React.useMemo(
+    () => props.articleList.map((aritcle) => {
+      if ((filter == null ? void 0 : filter.type) == "tag" && !aritcle.tags.includes(filter == null ? void 0 : filter.keyword)) {
         return;
+      }
+      if ((filter == null ? void 0 : filter.type) == "category" && aritcle.categories !== (filter == null ? void 0 : filter.keyword)) {
+        return;
+      }
+      return aritcle;
+    }).filter(Boolean),
+    [props.articleList, filter]
+  );
+  const currentArtcleList = React.useMemo(() => {
+    return articleList2.slice((currentPage - 1) * step, currentPage * step);
+  }, [currentPage]);
+  const paginationOptions = {
+    pageCount: Math.ceil(articleList2.length / step),
+    currentPage,
+    onChange: (page) => {
+      setCurrentPage(page);
     }
   };
-  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles.customLayout, children: render2(type) });
+  return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.articleList, children: currentArtcleList.map((item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$b.item, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: item2.cover, alt: "" }) }) }),
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$b.right, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$b.content, children: [
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("h2", { children: item2.title }) }),
+          /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$b.meta, children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+              /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar-alt" }),
+              "发表于 ",
+              item2.date
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+              /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "inbox" }),
+              /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/category/${item2.categories}`, children: item2.categories })
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$b["content-tag"], children: [
+              /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tag" }),
+              item2.tags.map((tag2, index2) => {
+                return /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${tag2}`, children: tag2 }, `${tag2}-${index2}`);
+              })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "p",
+            {
+              className: classNames(
+                styles$b.info,
+                styles$b["multiline-ellipsis"]
+              ),
+              children: item2.info
+            }
+          )
+        ] }) })
+      ] }, `${item2.title}-${index}`);
+    }) }),
+    /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, { children: articleList2.length && /* @__PURE__ */ jsxRuntime.jsx(Pagination, { ...paginationOptions }) })
+  ] });
+}
+function HomeLayout(props) {
+  return /* @__PURE__ */ jsxRuntime.jsx(ArticleList, { articleList: props.pageData.articlesList });
+}
+const layout = "_layout_1g63m_1";
+const header$1 = "_header_1g63m_9";
+const main = "_main_1g63m_18";
+const mainInner = "_mainInner_1g63m_24";
+const mainLeft = "_mainLeft_1g63m_33";
+const mainRight = "_mainRight_1g63m_38";
+const sidebarLeft = "_sidebarLeft_1g63m_43";
+const sidebarHide = "_sidebarHide_1g63m_47";
+const styles$9 = {
+  layout,
+  header: header$1,
+  "not-home-page": "_not-home-page_1g63m_15",
+  main,
+  mainInner,
+  mainLeft,
+  mainRight,
+  sidebarLeft,
+  sidebarHide
 };
-const Layout = (props) => {
+const banner = "_banner_1hwpr_1";
+const meta = "_meta_1hwpr_33";
+const styles$8 = {
+  banner,
+  "banner-site-info": "_banner-site-info_1hwpr_20",
+  "banner-site-title": "_banner-site-title_1hwpr_25",
+  meta,
+  "content-tag": "_content-tag_1hwpr_60",
+  "not-home-page": "_not-home-page_1hwpr_64"
+};
+function Banner(props) {
+  const {
+    children,
+    isHomePage,
+    isArticlePage,
+    title: title2,
+    bannerData = { img: "" },
+    articleData
+  } = props;
+  if (children) return children;
+  return /* @__PURE__ */ jsxRuntime.jsx(
+    "div",
+    {
+      className: classNames(styles$8.banner, {
+        [styles$8["not-home-page"]]: !isHomePage
+      }),
+      style: {
+        backgroundImage: `url(${isArticlePage ? articleData.cover : bannerData.img})`
+      },
+      children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$8["banner-site-info"], children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$8["banner-site-title"], children: title2 }),
+        isArticlePage && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$8.meta, children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+            /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "calendar-alt" }),
+            "发表于 ",
+            formatDateToYYYYMMDD(articleData.date)
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+            /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "inbox" }),
+            /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/category/${articleData.categories}`, children: articleData.categories })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsxs("span", { className: styles$8["content-tag"], children: [
+            /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tag" }),
+            articleData.tags.map((tag2, index) => {
+              return /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${tag2}`, children: tag2 }, `${tag2}-${index}`);
+            })
+          ] })
+        ] })
+      ] })
+    }
+  );
+}
+const footer = "_footer_iuxfi_1";
+const footerInner = "_footerInner_iuxfi_8";
+const styles$7 = {
+  footer,
+  footerInner,
+  "framework-info": "_framework-info_iuxfi_32"
+};
+function Footer(props) {
+  const { children } = props;
+  if (children) return children;
+  return /* @__PURE__ */ jsxRuntime.jsx("footer", { className: styles$7.footer, children: /* @__PURE__ */ jsxRuntime.jsxs(
+    "div",
+    {
+      className: styles$7.footerInner,
+      style: {
+        backgroundImage: `url(${props.footerImg})`
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntime.jsx("p", { children: "©2020 - 2023 By XXX17" }),
+        /* @__PURE__ */ jsxRuntime.jsxs("p", { className: styles$7["framework-info"], children: [
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "框架" }),
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "https://github.com/GitHubxxx17/fispo", children: "Fispo" }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "|" }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { children: "主题" }),
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "https://github.com/GitHubxxx17/fispo", children: "fish-in-pool" })
+        ] })
+      ]
+    }
+  ) });
+}
+const sidebar = "_sidebar_18neh_1";
+const stickyLayout = "_stickyLayout_18neh_8";
+const styles$6 = {
+  sidebar,
+  stickyLayout
+};
+const card = "_card_5w79l_1";
+const avatar = "_avatar_5w79l_12";
+const author = "_author_5w79l_21";
+const header = "_header_5w79l_75";
+const list = "_list_5w79l_112";
+const left = "_left_5w79l_118";
+const right = "_right_5w79l_131";
+const title = "_title_5w79l_137";
+const time = "_time_5w79l_146";
+const progress = "_progress_5w79l_155";
+const content = "_content_5w79l_162";
+const active = "_active_5w79l_178";
+const styles$5 = {
+  card,
+  avatar,
+  author,
+  "author-name": "_author-name_5w79l_26",
+  "author-description": "_author-description_5w79l_31",
+  "author-data": "_author-data_5w79l_34",
+  "follow-btn": "_follow-btn_5w79l_53",
+  header,
+  "card-announcement": "_card-announcement_5w79l_84",
+  "card-article": "_card-article_5w79l_87",
+  "card-list": "_card-list_5w79l_93",
+  list,
+  left,
+  right,
+  title,
+  time,
+  "card-toc": "_card-toc_5w79l_151",
+  progress,
+  content,
+  active,
+  "card-tag-cloud": "_card-tag-cloud_5w79l_187"
+};
+const AuthorCard = (props) => {
+  var _a, _b, _c, _d;
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.author, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.avatar, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: props.avatar }) }),
+    /* @__PURE__ */ jsxRuntime.jsx("h2", { className: styles$5["author-name"], children: props == null ? void 0 : props.author }),
+    /* @__PURE__ */ jsxRuntime.jsx("p", { className: styles$5["author-description"], children: props == null ? void 0 : props.description }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["author-data"], children: [
+      /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: "/", children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: "文章" }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: props == null ? void 0 : props.articleNums })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: "/tag", children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: "标签" }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: props == null ? void 0 : props.tagsNums })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: "/category", children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: "分类" }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: props == null ? void 0 : props.categorizeNums })
+      ] })
+    ] }),
+    ((_a = props == null ? void 0 : props.button) == null ? void 0 : _a.enable) && /* @__PURE__ */ jsxRuntime.jsx("button", { className: styles$5["follow-btn"], children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: (_b = props == null ? void 0 : props.button) == null ? void 0 : _b.link, target: "_blank", rel: "noreferrer", children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (_c = props == null ? void 0 : props.button) == null ? void 0 : _c.icon }),
+      (_d = props == null ? void 0 : props.button) == null ? void 0 : _d.text
+    ] }) })
+  ] });
+};
+const AuthorCard$1 = React.memo(AuthorCard);
+const AnnouncementCard = (props) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-announcement"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "history", shake: true }),
+      props == null ? void 0 : props.title
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsx("p", { children: props.content })
+  ] });
+};
+const AnnouncementCard$1 = React.memo(AnnouncementCard);
+const ArticleCard = (props) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-article"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "history" }),
+      props == null ? void 0 : props.title
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$5.list, children: props == null ? void 0 : props.data.map((item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.left, children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: item2.cover, alt: "" }) }) }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.right, children: [
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: item2.path, children: /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.title, children: item2.title }) }),
+          /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.time, children: item2.date })
+        ] })
+      ] }, `${item2.title}-${index}`);
+    }) })
+  ] });
+};
+const ArticleCard$1 = React.memo(ArticleCard);
+const ListCard = (props) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-list"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "folder-open" }),
+      props == null ? void 0 : props.title
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsx("ul", { className: styles$5.list, children: Object.entries(props == null ? void 0 : props.data).slice(0, props == null ? void 0 : props.limit).map(([name, value], index) => {
+      return /* @__PURE__ */ jsxRuntime.jsx("li", { children: props.hover ? /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: `/category/${name}`, children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: name }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: Array.isArray(value) ? value.length : value })
+      ] }) : /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: name }),
+        /* @__PURE__ */ jsxRuntime.jsx("span", { children: Array.isArray(value) ? value.length : value })
+      ] }) }, `${name}-${index}`);
+    }) })
+  ] });
+};
+const ListCard$1 = React.memo(ListCard);
+const TocCard = (props) => {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [progress2, setProgress] = React.useState(0);
+  const tocList = React.useRef([]);
+  const tocScroller = React.useRef(null);
+  const newTocData = React.useMemo(() => {
+    const serialNumberArr = [];
+    return props.data.map((item2) => {
+      if (item2.depth > serialNumberArr.length) {
+        while (item2.depth > serialNumberArr.length) {
+          serialNumberArr.push(1);
+        }
+      } else if (item2.depth < serialNumberArr.length) {
+        while (item2.depth < serialNumberArr.length) {
+          serialNumberArr.pop();
+        }
+        serialNumberArr[item2.depth - 1]++;
+      } else {
+        serialNumberArr[item2.depth - 1]++;
+      }
+      return { ...item2, serialNumber: serialNumberArr.join(".") };
+    });
+  }, [props]);
+  const tocActive = React.useCallback(
+    (index, isScrollIntoView = true) => {
+      setActiveIndex(index);
+      const targetItem = tocList.current[index];
+      if (!isScrollIntoView && !targetItem && tocScroller.current.scrollHeight === tocScroller.current.offsetHeight)
+        return;
+      const itemTop = targetItem.offsetTop;
+      const itemBottom = itemTop + targetItem.offsetHeight;
+      const containerTop = tocScroller.current.scrollTop;
+      const containerBottom = containerTop + tocScroller.current.offsetHeight;
+      if (itemTop < containerTop || itemBottom > containerBottom) {
+        targetItem.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      }
+    },
+    []
+  );
+  React.useLayoutEffect(() => {
+    let headers = [];
+    const NAV_HEIGHT2 = 60;
+    const isBottom = document.documentElement.scrollTop + window.innerHeight >= document.documentElement.scrollHeight;
+    let articleTop = 0;
+    const scrollToToc = (direction) => {
+      if (headers.length == 0) {
+        headers = Array.from(document.getElementsByClassName("header-anchor"));
+        articleTop = headers[0].parentElement.offsetTop;
+      }
+      let scrollTop = Math.ceil(window.scrollY);
+      if (scrollTop > articleTop) {
+        setProgress(
+          Math.ceil(
+            (scrollTop - articleTop) / (document.documentElement.scrollHeight - articleTop) * 100
+          )
+        );
+      } else {
+        setProgress(0);
+      }
+      if (isBottom) {
+        tocActive(headers.length - 1);
+        return;
+      }
+      if (direction == "up") {
+        scrollTop += NAV_HEIGHT2;
+      }
+      for (let i = 0; i < headers.length; i++) {
+        const currentAnchor = headers[i];
+        const nextAnchor = headers[i + 1];
+        const currentTop = currentAnchor.parentElement.offsetTop;
+        if (!nextAnchor) {
+          tocActive(i);
+          break;
+        }
+        if (i === 0 && scrollTop < currentTop || scrollTop == 0) {
+          tocActive(0);
+          break;
+        }
+        const nextTop = nextAnchor.parentElement.offsetTop;
+        if (currentTop <= scrollTop && scrollTop < nextTop) {
+          tocActive(i);
+          break;
+        }
+      }
+    };
+    scrollManager.add(scrollToToc);
+  }, []);
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-toc"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("span", { children: [
+        /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: (props == null ? void 0 : props.icon) || "stream" }),
+        props == null ? void 0 : props.title
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx("span", { className: styles$5.progress, children: progress2 })
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.content, ref: tocScroller, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: newTocData == null ? void 0 : newTocData.map(({ id, text, depth, serialNumber }, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsx(
+        "li",
+        {
+          className: classNames({
+            [styles$5.active]: index == activeIndex
+          }),
+          style: {
+            marginLeft: `${(depth - 1) * 20}px`
+          },
+          children: /* @__PURE__ */ jsxRuntime.jsxs(
+            Link,
+            {
+              ref: (el) => {
+                if (el) {
+                  tocList.current.push(el);
+                }
+              },
+              href: `#${id}`,
+              onClick: (e) => {
+                e.preventDefault();
+                const target = document.getElementById(id);
+                if (target) {
+                  scrollManager.scrollToTarget(target, true);
+                }
+                tocActive(index, false);
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntime.jsx("span", { children: `${serialNumber}. ` }),
+                /* @__PURE__ */ jsxRuntime.jsx("span", { children: text })
+              ]
+            }
+          )
+        },
+        `${text}-${index}`
+      );
+    }) }) })
+  ] });
+};
+const TocCard$1 = React.memo(TocCard);
+const getRandomColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = 70;
+  const minLightness = 30;
+  const maxLightness = 70;
+  const lightness = Math.floor(Math.random() * (maxLightness - minLightness + 1)) + minLightness;
+  const hslToHex = (h, s, l) => {
+    l /= 100;
+    const a = s * Math.min(l, 1 - l) / 100;
+    const f = (n) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, "0");
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
+  return hslToHex(hue, saturation, lightness);
+};
+const getRandomTextSize = (size) => {
+  return `${Math.min(size, 20) / 20 + 1}rem`;
+};
+const TagCard = (props) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5["card-tag"], children: [
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$5.header, children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: "tags" }),
+      props == null ? void 0 : props.title
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5["card-tag-cloud"], children: Object.entries(props.data).map(([tag2, tagArr], index) => {
+      return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsx(
+        Link,
+        {
+          href: `tag/${tag2}`,
+          style: {
+            color: getRandomColor(),
+            fontSize: getRandomTextSize(tagArr.length)
+          },
+          children: tag2
+        }
+      ) }, `${tag2}-${index}`);
+    }) })
+  ] });
+};
+const TagCard$1 = React.memo(TagCard);
+function Card(props) {
+  const {
+    type,
+    authorData,
+    listData,
+    articleData,
+    tocData,
+    announcementData,
+    tagData
+  } = props;
+  const getContent = () => {
+    switch (type) {
+      case "author":
+        return /* @__PURE__ */ jsxRuntime.jsx(AuthorCard$1, { ...authorData });
+      case "announcement":
+        return /* @__PURE__ */ jsxRuntime.jsx(AnnouncementCard$1, { ...announcementData });
+      case "list":
+        return /* @__PURE__ */ jsxRuntime.jsx(ListCard$1, { ...listData });
+      case "article":
+        return /* @__PURE__ */ jsxRuntime.jsx(ArticleCard$1, { ...articleData });
+      case "toc":
+        return /* @__PURE__ */ jsxRuntime.jsx(TocCard$1, { ...tocData });
+      case "tag":
+        return /* @__PURE__ */ jsxRuntime.jsx(TagCard$1, { ...tagData });
+      default:
+        return /* @__PURE__ */ jsxRuntime.jsx(jsxRuntime.Fragment, {});
+    }
+  };
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$5.card, children: getContent() });
+}
+function Sidebar(props) {
+  const { children, pageData, isArticlePage = false } = props;
+  const { siteData: siteData2 } = pageData;
+  const { sidebar: sidebar2 } = siteData2.themeConfig;
+  const {
+    card_author,
+    card_categories,
+    card_recent_post,
+    card_announcement,
+    card_tags,
+    card_webinfo
+  } = sidebar2;
+  if (children) return children;
+  const [isUp, setIsUp] = React.useState(false);
+  React.useEffect(() => {
+    const scroll = (direction) => {
+      setIsUp(direction == "up");
+    };
+    scrollManager.add(scroll);
+    return () => {
+      scrollManager.remove(scroll);
+    };
+  }, []);
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$6.sidebar, children: [
+    card_author.enable && /* @__PURE__ */ jsxRuntime.jsx(
+      Card,
+      {
+        type: "author",
+        authorData: {
+          author: siteData2.author,
+          avatar: siteData2.avatar,
+          description: (card_author == null ? void 0 : card_author.description) || siteData2.description,
+          articleNums: pageData.articlesList.length,
+          tagsNums: Object.keys(pageData.tags).length,
+          categorizeNums: Object.keys(pageData.categories).length,
+          button: card_author.button
+        }
+      }
+    ),
+    card_announcement.enable && /* @__PURE__ */ jsxRuntime.jsx(
+      Card,
+      {
+        type: "announcement",
+        announcementData: {
+          title: "公告",
+          icon: "bullhorn",
+          content: card_announcement.content
+        }
+      }
+    ),
+    !isArticlePage && card_categories.enable && /* @__PURE__ */ jsxRuntime.jsx(
+      Card,
+      {
+        type: "list",
+        listData: {
+          title: "分类",
+          data: pageData.categories,
+          limit: card_categories.limit,
+          hover: true
+        }
+      }
+    ),
+    !isArticlePage && card_tags.enable && /* @__PURE__ */ jsxRuntime.jsx(
+      Card,
+      {
+        type: "tag",
+        tagData: {
+          title: "标签",
+          data: pageData.tags
+        }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      "div",
+      {
+        className: styles$6.stickyLayout,
+        style: { top: isUp ? "70px" : "20px" },
+        children: [
+          isArticlePage && /* @__PURE__ */ jsxRuntime.jsx(
+            Card,
+            {
+              type: "toc",
+              tocData: {
+                title: "目录",
+                data: pageData.toc
+              }
+            }
+          ),
+          card_recent_post.enable && /* @__PURE__ */ jsxRuntime.jsx(
+            Card,
+            {
+              type: "article",
+              articleData: {
+                title: "最新文章",
+                data: pageData.articlesList.slice(0, card_recent_post.limit)
+              }
+            }
+          ),
+          !isArticlePage && card_webinfo.enable && /* @__PURE__ */ jsxRuntime.jsx(
+            Card,
+            {
+              type: "list",
+              listData: {
+                title: "网站资讯",
+                icon: "chart-line",
+                data: {
+                  "文章数目：": pageData.articlesList.length,
+                  "已运行时间 :": `1 天`,
+                  "最后更新时间 :": `2025-03-${(/* @__PURE__ */ new Date()).getDay()}`
+                }
+              }
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
+const Content = () => {
+  const handleRoutes2 = React.useMemo(() => {
+    return routes.map((route) => {
+      return { ...route, path: baseUrl(route.path) };
+    });
+  }, [routes]);
+  const routeElement = reactRouter.useRoutes(handleRoutes2);
+  return routeElement;
+};
+const Content$1 = React.memo(Content);
+const styles$4 = {
+  "article-layout": "_article-layout_zsltx_1",
+  "article-content": "_article-content_zsltx_10",
+  "post-copyright": "_post-copyright_zsltx_103",
+  "post-copyright-item": "_post-copyright-item_zsltx_125",
+  "article-tag": "_article-tag_zsltx_138",
+  "article-pagination": "_article-pagination_zsltx_158",
+  "pagination-left": "_pagination-left_zsltx_166",
+  "pagination-right": "_pagination-right_zsltx_167",
+  "pagination-info": "_pagination-info_zsltx_171",
+  "article-recommend": "_article-recommend_zsltx_183",
+  "recommend-title": "_recommend-title_zsltx_186",
+  "recommend-list": "_recommend-list_zsltx_191",
+  "recommend-info": "_recommend-info_zsltx_203",
+  "article-img-hover": "_article-img-hover_zsltx_214"
+};
+function ArticleLayout(props) {
+  const { articlesList, pagePath, frontmatter: frontmatter2, categories, siteData: siteData2 } = props.pageData;
+  const { title: title2, author: author2 } = siteData2;
+  const [currIndex, setCurrIndex] = React.useState(0);
+  const copyrightText = React.useMemo(() => {
+    const locationObj = typeof location === "undefined" ? {
+      href: "",
+      origin: ""
+    } : location;
+    return [
+      { meta: "文章作者：", value: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "", children: author2 }) },
+      {
+        meta: "文章链接：",
+        value: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: locationObj.href, children: locationObj.href })
+      },
+      {
+        meta: "版权声明：",
+        value: /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+          "本博客所有文章除特别声明外，均采用",
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: "https://creativecommons.org/licenses/by-nc-sa/4.0/", children: "CC BY-NC-SA 4.0" }),
+          "许可协议。转载请注明来自",
+          /* @__PURE__ */ jsxRuntime.jsx(Link, { href: locationObj.origin, children: title2 }),
+          "！"
+        ] })
+      }
+    ];
+  }, []);
+  const recmmendList = React.useMemo(() => {
+    const category2 = frontmatter2.categories;
+    return articlesList.filter((article) => {
+      return categories[category2].includes(article.path) && decodeURI(article.path) !== decodeURI(pagePath);
+    });
+  }, [frontmatter2, articlesList]);
+  React.useEffect(() => {
+    setCurrIndex(
+      articlesList.findIndex(
+        (article) => decodeURI(article.path) === decodeURI(pagePath)
+      )
+    );
+  }, [articlesList]);
+  React.useLayoutEffect(() => {
+    setTimeout(() => {
+      mediumZoom(".article-img");
+    }, 500);
+  }, []);
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-layout"], children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["article-content"], children: /* @__PURE__ */ jsxRuntime.jsx(Content$1, {}) }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["post-copyright"], children: copyrightText.map((item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsxs(
+        "div",
+        {
+          className: styles$4["post-copyright-item"],
+          children: [
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: item2.meta }),
+            /* @__PURE__ */ jsxRuntime.jsx("span", { children: item2.value })
+          ]
+        },
+        `post-copyright-${index}`
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["article-tag"], children: frontmatter2.tags.map((item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsx("span", { children: /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `/tag/${item2}`, children: item2 }) }, `${item2}-${index}`);
+    }) }),
+    currIndex !== 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-pagination"], children: [
+      currIndex > 0 && /* @__PURE__ */ jsxRuntime.jsx(
+        "div",
+        {
+          className: classNames(
+            styles$4["pagination-left"],
+            styles$4["article-img-hover"]
+          ),
+          children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: articlesList[currIndex - 1].path, children: [
+            /* @__PURE__ */ jsxRuntime.jsx("img", { src: articlesList[currIndex - 1].cover, alt: "" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["pagination-info"], children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: "上一篇" }),
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: articlesList[currIndex - 1].title })
+            ] })
+          ] })
+        }
+      ),
+      currIndex < articlesList.length - 1 && /* @__PURE__ */ jsxRuntime.jsx(
+        "div",
+        {
+          className: classNames(
+            styles$4["pagination-right"],
+            styles$4["article-img-hover"]
+          ),
+          children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: articlesList[currIndex + 1].path, children: [
+            /* @__PURE__ */ jsxRuntime.jsx("img", { src: articlesList[currIndex + 1].cover, alt: "" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["pagination-info"], children: [
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: "下一篇" }),
+              /* @__PURE__ */ jsxRuntime.jsx("span", { children: articlesList[currIndex + 1].title })
+            ] })
+          ] })
+        }
+      )
+    ] }),
+    recmmendList.length !== 0 && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["article-recommend"], children: [
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["recommend-title"], children: "相关推荐" }),
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$4["recommend-list"], children: recmmendList.map((recmmend, index) => {
+        return /* @__PURE__ */ jsxRuntime.jsx(
+          "div",
+          {
+            className: styles$4["article-img-hover"],
+            children: /* @__PURE__ */ jsxRuntime.jsxs(Link, { href: recmmend.path, children: [
+              /* @__PURE__ */ jsxRuntime.jsx("img", { src: recmmend.cover, alt: "" }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$4["recommend-info"], children: [
+                /* @__PURE__ */ jsxRuntime.jsx("span", { children: recmmend.date }),
+                /* @__PURE__ */ jsxRuntime.jsx("span", { children: recmmend.title })
+              ] })
+            ] })
+          },
+          `${recmmend.title}-${index}`
+        );
+      }) })
+    ] })
+  ] });
+}
+const tag = "_tag_1k45l_1";
+const tagItem = "_tagItem_1k45l_10";
+const styles$3 = {
+  tag,
+  tagItem
+};
+function Tags(props) {
+  const { tags = [] } = props;
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$3.tag, children: Object.keys(tags).map((name, index) => {
+    return /* @__PURE__ */ jsxRuntime.jsx(
+      Link,
+      {
+        className: styles$3.tagItem,
+        style: { color: getRandomColor() },
+        href: `tag/${name}`,
+        children: name
+      },
+      `${name}-${index}`
+    );
+  }) });
+}
+const category = "_category_1l5ig_1";
+const styles$2 = {
+  category
+};
+function Categories(props) {
+  const { categories } = props;
+  return /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles$2.category, children: /* @__PURE__ */ jsxRuntime.jsx("ul", { children: Object.entries(categories).map(([name, value], index) => {
+    return /* @__PURE__ */ jsxRuntime.jsxs("li", { children: [
+      /* @__PURE__ */ jsxRuntime.jsx(Link, { href: `category/${name}`, children: name }),
+      /* @__PURE__ */ jsxRuntime.jsx("span", { children: `(${value.length})` })
+    ] }, `${name}-${index}`);
+  }) }) });
+}
+function CustomLayout(props) {
+  const { pagePath, tags, articlesList, categories } = props.pageData;
+  const pathList = pagePath.split("/").filter(Boolean);
+  console.log(pathList);
+  const type = pathList[0];
+  if (type == "tag") {
+    return pathList.length == 1 ? /* @__PURE__ */ jsxRuntime.jsx(Tags, { tags }) : /* @__PURE__ */ jsxRuntime.jsx(
+      ArticleList,
+      {
+        articleList: articlesList,
+        filter: { type: "tag", keyword: decodeURIComponent(pathList.at(-1)) }
+      }
+    );
+  } else if (type === "category") {
+    return pathList.length == 1 ? /* @__PURE__ */ jsxRuntime.jsx(Categories, { categories }) : /* @__PURE__ */ jsxRuntime.jsx(
+      ArticleList,
+      {
+        articleList: articlesList,
+        filter: {
+          type: "category",
+          keyword: decodeURIComponent(pathList.at(-1))
+        }
+      }
+    );
+  } else {
+    return /* @__PURE__ */ jsxRuntime.jsx("div", {});
+  }
+}
+const rightSide = "_rightSide_g11mb_1";
+const styles$1 = {
+  rightSide,
+  "rightSide-settings": "_rightSide-settings_g11mb_8",
+  "rightSide-item": "_rightSide-item_g11mb_14",
+  "rightSide-hide": "_rightSide-hide_g11mb_30"
+};
+function localGetData(name) {
+  if (typeof localStorage === "undefined") {
+    return null;
+  }
+  const data = localStorage.getItem(name);
+  if (data !== null) {
+    return JSON.parse(data);
+  } else {
+    return null;
+  }
+}
+function localSaveData(name, data) {
+  localStorage.setItem(name, JSON.stringify(data));
+}
+const THEME = "THEME";
+function RightSide(props) {
+  const { setSideBarHide } = props;
+  const [isTop, setIsTop] = React.useState(true);
+  const [settingsIsHide, setSettingsIsHide] = React.useState(true);
+  const rightSideSettings = React.useMemo(
+    () => [
+      {
+        icon: "adjust",
+        text: "深色和浅色模式切换",
+        click: () => {
+          const classList = document.documentElement.classList;
+          if (classList.contains("dark")) {
+            localSaveData(THEME, "light");
+          } else {
+            localSaveData(THEME, "dark");
+          }
+          classList.toggle("dark");
+        }
+      },
+      {
+        icon: "arrows-alt-h",
+        text: "单栏和双栏的切换",
+        click: () => {
+          setSideBarHide();
+        }
+      }
+    ],
+    []
+  );
+  const rightSideOptions = React.useMemo(
+    () => [
+      {
+        icon: "cog",
+        text: "设置",
+        isSpin: true,
+        click: () => {
+          setSettingsIsHide((pre) => !pre);
+        }
+      },
+      {
+        icon: "arrow-up",
+        text: "回到顶部",
+        click: () => {
+          scrollManager.scrollToTarget(document.body, true);
+        }
+      }
+    ],
+    []
+  );
+  const setClassList = React.useCallback((isDark = false) => {
+    const classList = document.documentElement.classList;
+    if (isDark) {
+      classList.add("dark");
+    } else {
+      classList.remove("dark");
+    }
+  }, []);
+  const updateTheme = React.useCallback(() => {
+    const theme = localGetData(THEME);
+    setClassList(theme === "dark");
+  }, []);
+  React.useEffect(() => {
+    const showRightSide = (_, isTop2) => {
+      setIsTop(isTop2);
+    };
+    scrollManager.add(showRightSide);
+    updateTheme();
+    window.addEventListener("storage", updateTheme);
+    return () => {
+      scrollManager.remove(showRightSide);
+      window.removeEventListener("storage", updateTheme);
+    };
+  }, []);
+  const rightSideItemRender = React.useCallback(
+    (item2, index) => {
+      return /* @__PURE__ */ jsxRuntime.jsx(
+        "div",
+        {
+          className: styles$1["rightSide-item"],
+          title: item2.text,
+          onClick: () => {
+            var _a;
+            (_a = item2.click) == null ? void 0 : _a.call(item2);
+          },
+          children: /* @__PURE__ */ jsxRuntime.jsx(Icon, { icon: item2.icon, isSpin: item2 == null ? void 0 : item2.isSpin })
+        },
+        `${item2}-${index}`
+      );
+    },
+    []
+  );
+  return /* @__PURE__ */ jsxRuntime.jsxs(
+    "div",
+    {
+      className: classNames(styles$1.rightSide, {
+        [styles$1["rightSide-hide"]]: isTop
+      }),
+      children: [
+        /* @__PURE__ */ jsxRuntime.jsx(
+          "div",
+          {
+            className: classNames(styles$1["rightSide-settings"], {
+              [styles$1["rightSide-hide"]]: settingsIsHide
+            }),
+            children: rightSideSettings.map(rightSideItemRender)
+          }
+        ),
+        rightSideOptions.map(rightSideItemRender)
+      ]
+    }
+  );
+}
+const notFoundLayout = "_notFoundLayout_18laa_1";
+const notFoundImg = "_notFoundImg_18laa_15";
+const errorInfo = "_errorInfo_18laa_30";
+const styles = {
+  notFoundLayout,
+  notFoundImg,
+  errorInfo
+};
+const NotFoundLayout = (props) => {
+  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles.notFoundLayout, children: [
+    /* @__PURE__ */ jsxRuntime.jsx("div", { className: styles.notFoundImg, children: /* @__PURE__ */ jsxRuntime.jsx("img", { src: props.notFoundImg, alt: "404" }) }),
+    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles.errorInfo, children: [
+      /* @__PURE__ */ jsxRuntime.jsx("h1", { children: "404" }),
+      /* @__PURE__ */ jsxRuntime.jsx("span", { children: "页面没有找到" })
+    ] })
+  ] });
+};
+function Layout(props) {
   const { pageData } = props;
-  const { pageType, siteData: siteData2 } = pageData;
-  const { title: siteTitle, themeConfig, author } = siteData2;
-  const { navMenus } = themeConfig;
+  const { pageType, title: title2, siteData: siteData2, frontmatter: frontmatter2 } = pageData;
+  const { title: siteTitle, themeConfig } = siteData2;
+  const { sidebar: sidebar2, navMenus, banner: banner2 } = themeConfig;
   const isHomePage = pageType === "home";
   const isArticlePage = pageType === "article";
-  console.log(pageData);
+  const is404 = pageType === "404";
+  const [sidebarEnable, setSidebarEnable] = React.useState(() => {
+    if (is404) return false;
+    const hide2 = localGetData("sidebarHide");
+    if (hide2 !== null) {
+      return !hide2;
+    }
+    return sidebar2.enable;
+  });
+  const [sideBarHide, setSideBarHide] = React.useState(sidebar2.hide);
   const getCurrentLayout = () => {
     if (isHomePage) {
       return /* @__PURE__ */ jsxRuntime.jsx(HomeLayout, { pageData });
@@ -623,27 +1481,104 @@ const Layout = (props) => {
     } else if (pageType === "custom") {
       return /* @__PURE__ */ jsxRuntime.jsx(CustomLayout, { pageData });
     } else {
-      return /* @__PURE__ */ jsxRuntime.jsx("div", { children: "404" });
+      return /* @__PURE__ */ jsxRuntime.jsx(NotFoundLayout, { notFoundImg: siteData2.notFoundImg });
     }
   };
   React.useEffect(() => {
     scrollManager.init();
+    const hide2 = localGetData("sidebarHide");
+    if (hide2 !== null) {
+      setSideBarHide(hide2);
+    }
     return () => {
       scrollManager.destory();
     };
   }, []);
-  return /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$8.layout, children: [
-    /* @__PURE__ */ jsxRuntime.jsx(Nav, { title: siteTitle, menus: navMenus, navBlue: !isHomePage }),
-    getCurrentLayout(),
-    /* @__PURE__ */ jsxRuntime.jsx(Footer, { author, title: siteTitle })
-  ] });
-};
+  return /* @__PURE__ */ jsxRuntime.jsxs(
+    "div",
+    {
+      className: styles$9.layout,
+      style: {
+        backgroundImage: `url(${siteData2.backgroundImg})`
+      },
+      children: [
+        /* @__PURE__ */ jsxRuntime.jsx(reactHelmetAsync.Helmet, { children: /* @__PURE__ */ jsxRuntime.jsx("title", { children: isHomePage ? title2 : `${title2} | ${siteData2.title}` }) }),
+        /* @__PURE__ */ jsxRuntime.jsxs(
+          "header",
+          {
+            className: classNames(styles$9.header, {
+              [styles$9["not-home-page"]]: !isHomePage
+            }),
+            children: [
+              /* @__PURE__ */ jsxRuntime.jsx(Nav, { title: siteTitle, menus: navMenus }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                Banner,
+                {
+                  isHomePage,
+                  isArticlePage,
+                  title: title2,
+                  bannerData: banner2,
+                  articleData: frontmatter2
+                }
+              )
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntime.jsx("main", { className: styles$9.main, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: styles$9.mainInner, children: [
+          /* @__PURE__ */ jsxRuntime.jsx(
+            "div",
+            {
+              className: styles$9.mainLeft,
+              style: {
+                width: sideBarHide ? "80%" : ""
+              },
+              children: getCurrentLayout()
+            }
+          ),
+          sidebarEnable && /* @__PURE__ */ jsxRuntime.jsx(
+            "div",
+            {
+              className: classNames(styles$9.mainRight, {
+                [styles$9.sidebarLeft]: sidebar2.position === "left",
+                [styles$9.sidebarHide]: sideBarHide
+              }),
+              children: /* @__PURE__ */ jsxRuntime.jsx(
+                Sidebar,
+                {
+                  pageData,
+                  isArticlePage
+                }
+              )
+            }
+          )
+        ] }) }),
+        !is404 && /* @__PURE__ */ jsxRuntime.jsx(
+          RightSide,
+          {
+            pageData,
+            setSideBarHide: () => {
+              setSideBarHide((pre) => {
+                if (sidebarEnable === false) {
+                  setSidebarEnable(true);
+                }
+                localSaveData("sidebarHide", !pre);
+                return !pre;
+              });
+            }
+          }
+        ),
+        /* @__PURE__ */ jsxRuntime.jsx(Footer, { footerImg: banner2.img })
+      ]
+    }
+  );
+}
 async function initPageData(routePath) {
+  routePath = removeBase(routePath);
   const pathList = routePath.split("/").filter(Boolean);
   const isHomeOrCustom = pathList.length === 0 || siteData.themeConfig.navMenus.find(
-    (item) => item.path == `/${pathList[0]}`
+    (item2) => item2.path == `/${pathList[0]}`
   );
-  const { articlesList, tags: tags2, categories } = await handleRoutes(routes);
+  const { articlesList, tags, categories } = await handleRoutes(routes);
   sortByDate(articlesList);
   const getPageData = (pageType, frontmatter2, title2, toc2) => {
     return {
@@ -653,7 +1588,7 @@ async function initPageData(routePath) {
       pagePath: routePath,
       title: title2,
       articlesList,
-      tags: tags2,
+      tags,
       categories,
       toc: toc2
     };
@@ -662,7 +1597,7 @@ async function initPageData(routePath) {
     let bannerTitle = siteData.title;
     if (pathList.length == 1) {
       bannerTitle = siteData.themeConfig.navMenus.find(
-        (item) => item.path == `/${pathList[0]}`
+        (item2) => item2.path == `/${pathList[0]}`
       ).title;
     } else if (pathList.length > 1) {
       bannerTitle = decodeURIComponent(pathList.at(-1));
@@ -683,7 +1618,13 @@ async function initPageData(routePath) {
 }
 function App() {
   const pageData = usePageData();
-  return /* @__PURE__ */ jsxRuntime.jsx(React.Suspense, { fallback: /* @__PURE__ */ jsxRuntime.jsx("div", { children: "Loading..." }), children: /* @__PURE__ */ jsxRuntime.jsx(Layout, { pageData }) });
+  const [finishLoading, setFinishLoading] = React.useState(false);
+  React.useEffect(() => {
+  }, []);
+  return /* @__PURE__ */ jsxRuntime.jsxs(jsxRuntime.Fragment, { children: [
+    siteData.preloader,
+    /* @__PURE__ */ jsxRuntime.jsx(Layout, { pageData })
+  ] });
 }
 function StaticRouter({
   basename,
@@ -695,7 +1636,7 @@ function StaticRouter({
     locationProp = reactRouter.parsePath(locationProp);
   }
   let action = router.Action.Pop;
-  let location = {
+  let location2 = {
     pathname: locationProp.pathname || "/",
     search: locationProp.search || "",
     hash: locationProp.hash || "",
@@ -706,7 +1647,7 @@ function StaticRouter({
   return /* @__PURE__ */ React__namespace.createElement(reactRouter.Router, {
     basename,
     children,
-    location,
+    location: location2,
     navigationType: action,
     navigator: staticNavigator,
     future,
