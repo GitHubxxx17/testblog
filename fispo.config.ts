@@ -2,6 +2,7 @@ import type { ThemeConfig } from "@fispo/particle";
 import { defineConfig } from "fispo-core";
 
 export default defineConfig({
+  base: "/testblog",
   title: "fispo的个人博客",
   author: "fispo",
   description: "学无止境",
