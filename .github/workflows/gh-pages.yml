@@ -1,10 +1,7 @@
-name: github pages
-
+name: Deploy to GitHub Pages
 on:
   push:
-    branches:
-      - master # default branch
-
+    branches: [master]
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,11 +9,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          # 如果配置 themeConfig.lastUpdated 为 false，则不需要添加该参数以加快检出速度
           fetch-depth: 0
+          
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # 文档目录，如果是 react 模板需要修改为 docs-dist
-          publish_dir: ./docs/build
+          publish_dir: docs/build
+          publish_branch: gh-page

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "fispo dev",
     "build": "fispo build",
-    "preview": "fispo preview"
+    "preview": "fispo preview",
+    "deploy": "fispo deploy"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,6 @@
   "dependencies": {
     "@fispo/particle": "^0.3.2",
     "@fispo/plugin-preloader": "^0.3.0",
-    "fispo-core": "^0.3.2"
+    "fispo-core": "^0.3.4"
   }
 }

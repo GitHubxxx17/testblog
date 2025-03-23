@@ -34,4 +34,8 @@ export default defineConfig({
   },
   preloader: true,
   plugins: [preloaderPlugin()],
+  deploy: {
+    repo: "https://github.com/GitHubxxx17/testblog.git",
+    branch: "gh-page",
+  },
 });
