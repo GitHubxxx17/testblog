@@ -117,7 +117,7 @@ const helloworld = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePr
 const routes = [
   { path: "/post/helloworld", element: React.createElement(MDXContent), preload: () => Promise.resolve().then(() => helloworld) }
 ];
-const siteData = { "base": "/testblog", "title": "fispo的个人博客", "description": "学无止境", "theme": "", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "subtitle": "" }, "sidebar": { "enable": true, "hide": false, "position": "right", "card_author": { "enable": true, "description": "", "button": { "enable": true, "icon": "github", "text": "Follow me", "link": "" } }, "card_announcement": { "enable": true, "content": "" }, "card_recent_post": { "enable": true, "limit": 5, "sort": "date" }, "card_categories": { "enable": true, "limit": 10 }, "card_tags": { "enable": true, "limit": 10 }, "card_webinfo": { "enable": true, "post_count": true, "last_push_date": true, "run_time": true } }, "footer": { "message": "", "copyright": "" } }, "vite": { "base": "/testblog" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "build": "build", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png", "markdown": {}, "plugins": [{ "name": "fispo:plugin-perloader", "alias": { "@plugin-perloader": "D:\\Front-end\\ssg_learn\\blog\\node_modules\\@fispo\\plugin-preloader\\src\\Loading\\index.tsx" }, "preloader": "@plugin-perloader" }], "preloader": true, "deploy": { "branch": "master", "repo": "" } };
+const siteData = { "base": "/testblog", "title": "fispo的个人博客", "description": "学无止境", "theme": "", "themeConfig": { "navMenus": [{ "title": "首页", "path": "/", "icon": "home" }, { "title": "标签", "path": "/tag", "icon": "tag" }, { "title": "分类", "path": "/category", "icon": "folder-open" }, { "title": "关于", "path": "/about", "icon": "heart" }], "banner": { "img": "/banner.png", "subtitle": "" }, "sidebar": { "enable": true, "hide": false, "position": "right", "card_author": { "enable": true, "description": "", "button": { "enable": true, "icon": "github", "text": "Follow me", "link": "" } }, "card_announcement": { "enable": true, "content": "" }, "card_recent_post": { "enable": true, "limit": 5, "sort": "date" }, "card_categories": { "enable": true, "limit": 10 }, "card_tags": { "enable": true, "limit": 10 }, "card_webinfo": { "enable": true, "post_count": true, "last_push_date": true, "run_time": true } }, "footer": { "message": "", "copyright": "" } }, "vite": { "base": "/testblog" }, "author": "fispo", "avatar": "/avatar.jpg", "backgroundImg": "/bg.png", "root": "docs", "postDir": "post", "build": "build", "public": "public", "notFoundImg": "/404.png", "logo": "/logo.png", "markdown": {}, "plugins": [{ "name": "fispo:plugin-perloader", "alias": { "@plugin-perloader": "D:\\Front-end\\ssg_learn\\blog\\node_modules\\@fispo\\plugin-preloader\\src\\Loading\\index.tsx" }, "preloader": "@plugin-perloader" }], "preloader": true, "deploy": { "repo": "https://github.com/GitHubxxx17/testblog.git", "branch": "gh-page" } };
 function formatDateToYYYYMMDD(dateStr) {
   const date = new Date(dateStr);
   const year = date.getFullYear();
@@ -310,8 +310,11 @@ function withBase(url, base) {
 }
 const checkDomReady = () => {
   return new Promise((resolve) => {
-    if (document.readyState === "complete") resolve(0);
-    else window.addEventListener("load", resolve, { once: true });
+    if (document.readyState === "interactive" || document.readyState === "complete") {
+      resolve(0);
+    } else {
+      document.addEventListener("DOMContentLoaded", resolve, { once: true });
+    }
   });
 };
 const checkAllImagesLoaded = () => {
