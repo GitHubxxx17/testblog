@@ -13,8 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@fispo/particle": "^0.3.2",
-    "@fispo/plugin-preloader": "^0.3.0",
-    "fispo-core": "^0.3.4"
+    "@fispo/particle": "^0.4.4",
+    "@fispo/plugin-preloader": "^0.4.3",
+    "fispo-core": "^0.4.5"
   }
 }
